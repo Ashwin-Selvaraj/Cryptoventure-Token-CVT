@@ -823,29 +823,60 @@ contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, Pausable, Reent
         _unpause();
     }
 
-
     modifier validAddressAndAmount(address _address, uint256 amount){
         require(amount > 0, "Invalid amount: should not be zero");
         require(_address != address(0), "Invalid address: zero address");
         _;
     }
 
-    // function to distriibute tokens
+    // function to distribute tokens
     function distributeTokens(
         address distributionWallet,
         uint supply
     ) external onlyOwner whenNotPaused validAddressAndAmount(distributionWallet, supply) nonReentrant{
-        require(supply <= balanceOf(_msgSender()), "Insufficient balance");
+        uint256 amountWithDecimals = supply * (10 ** decimals());
+        require(amountWithDecimals <= balanceOf(_msgSender()), "Insufficient balance");
         _transfer(
             _msgSender(),
             distributionWallet,
-            (supply * (10 ** decimals()))
+            amountWithDecimals
         );
     }
 
     // Function to burn tokens (only owner)
     function burnTokens(uint256 amount) external onlyOwner whenNotPaused nonReentrant {
         require(amount > 0, "Amount must be greater than 0");
-        _burn(_msgSender(), amount);
+        uint256 amountWithDecimals = amount * (10 ** decimals());
+        _burn(_msgSender(), amountWithDecimals);
+    }
+
+    // Override transfer function to handle decimals
+    function transfer(address to, uint256 amount) public override whenNotPaused returns (bool) {
+        uint256 amountWithDecimals = amount * (10 ** decimals());
+        return super.transfer(to, amountWithDecimals);
+    }
+
+    // Override transferFrom function to handle decimals
+    function transferFrom(address from, address to, uint256 amount) public override whenNotPaused returns (bool) {
+        uint256 amountWithDecimals = amount * (10 ** decimals());
+        return super.transferFrom(from, to, amountWithDecimals);
+    }
+
+    // Override approve function to handle decimals
+    function approve(address spender, uint256 amount) public override whenNotPaused returns (bool) {
+        uint256 amountWithDecimals = amount * (10 ** decimals());
+        return super.approve(spender, amountWithDecimals);
+    }
+
+    // Override increaseAllowance function to handle decimals
+    function increaseAllowance(address spender, uint256 addedValue) public override whenNotPaused returns (bool) {
+        uint256 amountWithDecimals = addedValue * (10 ** decimals());
+        return super.increaseAllowance(spender, amountWithDecimals);
+    }
+
+    // Override decreaseAllowance function to handle decimals
+    function decreaseAllowance(address spender, uint256 subtractedValue) public override whenNotPaused returns (bool) {
+        uint256 amountWithDecimals = subtractedValue * (10 ** decimals());
+        return super.decreaseAllowance(spender, amountWithDecimals);
     }
 }
