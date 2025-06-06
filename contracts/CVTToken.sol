@@ -701,127 +701,15 @@ abstract contract ReentrancyGuardUpgradeable is Initializable {
     }
 }
 
-abstract contract Pausable is Context {
-    bool private _paused;
-
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    /**
-     * @dev The operation failed because the contract is paused.
-     */
-    error EnforcedPause();
-
-    /**
-     * @dev The operation failed because the contract is not paused.
-     */
-    error ExpectedPause();
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        _requireNotPaused();
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        _requirePaused();
-        _;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        if (paused()) {
-            revert EnforcedPause();
-        }
-    }
-
-    /**
-     * @dev Throws if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        if (!paused()) {
-            revert ExpectedPause();
-        }
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
-}
-
-contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, Pausable, ReentrancyGuardUpgradeable {
+contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuardUpgradeable {
 
     constructor()
-        ERC20("CryptoventureToken", "CVT")
+        ERC20("Crypto Venture Trade", "CVT")
         ERC20Capped(20000000 * (10 ** decimals()))
     {
         _mint(_msgSender(), 20000000 * (10 ** decimals()));
     }
 
-    // Pausable functions
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    function unpause() external onlyOwner {
-        _unpause();
-    }
 
     modifier validAddressAndAmount(address _address, uint256 amount){
         require(amount > 0, "Invalid amount: should not be zero");
@@ -829,53 +717,39 @@ contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, Pausable, Reent
         _;
     }
 
-    // function to distribute tokens
-    function distributeTokens(
-        address distributionWallet,
-        uint supply
-    ) external onlyOwner whenNotPaused validAddressAndAmount(distributionWallet, supply) nonReentrant{
-        uint256 amountWithDecimals = supply * (10 ** decimals());
-        require(amountWithDecimals <= balanceOf(_msgSender()), "Insufficient balance");
-        _transfer(
-            _msgSender(),
-            distributionWallet,
-            amountWithDecimals
-        );
-    }
-
     // Function to burn tokens (only owner)
-    function burnTokens(uint256 amount) external onlyOwner whenNotPaused nonReentrant {
+    function burnTokens(uint256 amount) external onlyOwner nonReentrant {
         require(amount > 0, "Amount must be greater than 0");
         uint256 amountWithDecimals = amount * (10 ** decimals());
         _burn(_msgSender(), amountWithDecimals);
     }
 
     // Override transfer function to handle decimals
-    function transfer(address to, uint256 amount) public override whenNotPaused returns (bool) {
+    function transfer(address to, uint256 amount) public override returns (bool) {
         uint256 amountWithDecimals = amount * (10 ** decimals());
         return super.transfer(to, amountWithDecimals);
     }
 
     // Override transferFrom function to handle decimals
-    function transferFrom(address from, address to, uint256 amount) public override whenNotPaused returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
         uint256 amountWithDecimals = amount * (10 ** decimals());
         return super.transferFrom(from, to, amountWithDecimals);
     }
 
     // Override approve function to handle decimals
-    function approve(address spender, uint256 amount) public override whenNotPaused returns (bool) {
+    function approve(address spender, uint256 amount) public override returns (bool) {
         uint256 amountWithDecimals = amount * (10 ** decimals());
         return super.approve(spender, amountWithDecimals);
     }
 
     // Override increaseAllowance function to handle decimals
-    function increaseAllowance(address spender, uint256 addedValue) public override whenNotPaused returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) public override returns (bool) {
         uint256 amountWithDecimals = addedValue * (10 ** decimals());
         return super.increaseAllowance(spender, amountWithDecimals);
     }
 
     // Override decreaseAllowance function to handle decimals
-    function decreaseAllowance(address spender, uint256 subtractedValue) public override whenNotPaused returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) public override returns (bool) {
         uint256 amountWithDecimals = subtractedValue * (10 ** decimals());
         return super.decreaseAllowance(spender, amountWithDecimals);
     }
