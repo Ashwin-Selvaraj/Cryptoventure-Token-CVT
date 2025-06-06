@@ -810,14 +810,10 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
         uint256 duration;
         // duration of a slice period for the vesting in seconds
         uint256 slicePeriodSeconds;
-        // whether or not the vesting is revocable
-        bool revocable;
         // total amount of tokens to be released at the end of the vesting
         uint256 amountTotal;
         // amount of tokens released
         uint256 released;
-        // whether or not the vesting has been revoked
-        bool revoked;
     }
 
     // address of the ERC20 token
@@ -827,14 +823,6 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
     mapping(bytes32 => VestingSchedule) private vestingSchedules;
     uint256 private vestingSchedulesTotalAmount;
     mapping(address => uint256) private holdersVestingCount;
-
-    /**
-     * @dev Reverts if the vesting schedule does not exist or has been revoked.
-     */
-    modifier onlyIfVestingScheduleNotRevoked(bytes32 vestingScheduleId) {
-        require(!vestingSchedules[vestingScheduleId].revoked);
-        _;
-    }
 
     /**
      * @dev Creates a vesting contract.
@@ -865,7 +853,6 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
      * @param _cliff duration in seconds of the cliff in which tokens will begin to vest
      * @param _duration duration in seconds of the period in which the tokens will vest
      * @param _slicePeriodSeconds duration of a slice period for the vesting in seconds
-     * @param _revocable whether the vesting is revocable or not
      * @param _amount total amount of tokens to be released at the end of the vesting (in base units)
      */
     function createVestingSchedule(
@@ -874,7 +861,6 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
         uint256 _cliff,
         uint256 _duration,
         uint256 _slicePeriodSeconds,
-        bool _revocable,
         uint256 _amount
     ) external onlyOwner {
         // Convert amount to wei
@@ -901,39 +887,13 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
             _start,
             _duration,
             _slicePeriodSeconds,
-            _revocable,
             amountInWei,
-            0,
-            false
+            0
         );
         vestingSchedulesTotalAmount = vestingSchedulesTotalAmount + amountInWei;
         vestingSchedulesIds.push(vestingScheduleId);
         uint256 currentVestingCount = holdersVestingCount[_beneficiary];
         holdersVestingCount[_beneficiary] = currentVestingCount + 1;
-    }
-
-    /**
-     * @notice Revokes the vesting schedule for given identifier.
-     * @param vestingScheduleId the vesting schedule identifier
-     */
-    function revoke(
-        bytes32 vestingScheduleId
-    ) external onlyOwner onlyIfVestingScheduleNotRevoked(vestingScheduleId) {
-        VestingSchedule storage vestingSchedule = vestingSchedules[
-            vestingScheduleId
-        ];
-        require(
-            vestingSchedule.revocable,
-            "TokenVesting: vesting is not revocable"
-        );
-        uint256 vestedAmount = _computeReleasableAmount(vestingSchedule);
-        if (vestedAmount > 0) {
-            release(vestingScheduleId, vestedAmount);
-        }
-        uint256 unreleased = vestingSchedule.amountTotal -
-            vestingSchedule.released;
-        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount - unreleased;
-        vestingSchedule.revoked = true;
     }
 
     /**
@@ -957,7 +917,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
     function release(
         bytes32 vestingScheduleId,
         uint256 amount
-    ) public nonReentrant onlyIfVestingScheduleNotRevoked(vestingScheduleId) {
+    ) public nonReentrant {
         uint256 amountInWei = amount * DECIMAL_MULTIPLIER;
         VestingSchedule storage vestingSchedule = vestingSchedules[
             vestingScheduleId
@@ -1048,12 +1008,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
      */
     function computeReleasableAmount(
         bytes32 vestingScheduleId
-    )
-        external
-        view
-        onlyIfVestingScheduleNotRevoked(vestingScheduleId)
-        returns (uint256)
-    {
+    ) external view returns (uint256) {
         VestingSchedule storage vestingSchedule = vestingSchedules[
             vestingScheduleId
         ];
@@ -1126,7 +1081,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
         // Retrieve the current time.
         uint256 currentTime = getCurrentTime();
         // If the current time is before the cliff, no tokens are releasable.
-        if ((currentTime < vestingSchedule.cliff) || vestingSchedule.revoked) {
+        if (currentTime < vestingSchedule.cliff) {
             return 0;
         }
         // If the current time is after the vesting period, all tokens are releasable,
