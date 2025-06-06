@@ -3,5 +3,12 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "hardhat": "^2.24.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "node ignition/modules/deploy.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0"
   }
 }
