@@ -794,7 +794,76 @@ library SafeTransferLib {
 }
 
 
-contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
+//CHAINLINK AUTOMATION CONTRACTS
+
+contract AutomationBase {
+  error OnlySimulatedBackend();
+
+  /**
+   * @notice method that allows it to be simulated via eth_call by checking that
+   * the sender is the zero address.
+   */
+  function _preventExecution() internal view {
+    // solhint-disable-next-line avoid-tx-origin
+    if (tx.origin != address(0) && tx.origin != address(0x1111111111111111111111111111111111111111)) {
+      revert OnlySimulatedBackend();
+    }
+  }
+
+  /**
+   * @notice modifier that allows it to be simulated via eth_call by checking
+   * that the sender is the zero address.
+   */
+  modifier cannotExecute() {
+    _preventExecution();
+    _;
+  }
+}
+
+// solhint-disable-next-line interface-starts-with-i
+interface AutomationCompatibleInterface {
+  /**
+   * @notice method that is simulated by the keepers to see if any work actually
+   * needs to be performed. This method does does not actually need to be
+   * executable, and since it is only ever simulated it can consume lots of gas.
+   * @dev To ensure that it is never called, you may want to add the
+   * cannotExecute modifier from KeeperBase to your implementation of this
+   * method.
+   * @param checkData specified in the upkeep registration so it is always the
+   * same for a registered upkeep. This can easily be broken down into specific
+   * arguments using `abi.decode`, so multiple upkeeps can be registered on the
+   * same contract and easily differentiated by the contract.
+   * @return upkeepNeeded boolean to indicate whether the keeper should call
+   * performUpkeep or not.
+   * @return performData bytes that the keeper should call performUpkeep with, if
+   * upkeep is needed. If you would like to encode data to decode later, try
+   * `abi.encode`.
+   */
+  function checkUpkeep(bytes calldata checkData) external returns (bool upkeepNeeded, bytes memory performData);
+
+  /**
+   * @notice method that is actually executed by the keepers, via the registry.
+   * The data returned by the checkUpkeep simulation will be passed into
+   * this method to actually be executed.
+   * @dev The input to this method should not be trusted, and the caller of the
+   * method should not even be restricted to any single registry. Anyone should
+   * be able call it, and the input should be validated, there is no guarantee
+   * that the data passed in is the performData returned from checkUpkeep. This
+   * could happen due to malicious keepers, racing keepers, or simply a state
+   * change while the performUpkeep transaction is waiting for confirmation.
+   * Always validate the data passed in.
+   * @param performData is the data which was passed back from the checkData
+   * simulation. If it is encoded, it can easily be decoded into other types by
+   * calling `abi.decode`. This data should not be trusted, and should be
+   * validated against the contract's current state.
+   */
+  function performUpkeep(bytes calldata performData) external;
+}
+
+abstract contract AutomationCompatible is AutomationBase, AutomationCompatibleInterface {}
+
+
+contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatibleInterface{
     // Add decimals constant
     uint256 public constant DECIMALS = 18;
     uint256 public constant DECIMAL_MULTIPLIER = 10**DECIMALS;
@@ -823,6 +892,8 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
     mapping(bytes32 => VestingSchedule) private vestingSchedules;
     uint256 private vestingSchedulesTotalAmount;
     mapping(address => uint256) private holdersVestingCount;
+    address public chainlinkRegistry;
+
 
     /**
      * @dev Creates a vesting contract.
@@ -845,6 +916,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
      * identifier or no data was provided with the function call.
      */
     fallback() external payable {}
+
 
     /**
      * @notice Creates a new vesting schedule for a beneficiary.
@@ -906,7 +978,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
             getWithdrawableAmount() >= amountInWei,
             "TokenVesting: not enough withdrawable funds"
         );
-        SafeTransferLib.safeTransfer(_token, msg.sender, amountInWei);
+        SafeTransferLib.safeTransfer(_token, msg.sender, amount);
     }
 
     /**
@@ -922,12 +994,6 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
         VestingSchedule storage vestingSchedule = vestingSchedules[
             vestingScheduleId
         ];
-        bool isBeneficiary = msg.sender == vestingSchedule.beneficiary;
-        bool isReleasor = ((owner() == _msgSender()));
-        require(
-            isBeneficiary || isReleasor,
-            "TokenVesting: only beneficiary and owner can release vested tokens"
-        );
         uint256 vestedAmount = _computeReleasableAmount(vestingSchedule);
         require(
             vestedAmount >= amountInWei,
@@ -938,7 +1004,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
             vestingSchedule.beneficiary
         );
         vestingSchedulesTotalAmount = vestingSchedulesTotalAmount - amountInWei;
-        SafeTransferLib.safeTransfer(_token, beneficiaryPayable, amountInWei);
+        SafeTransferLib.safeTransfer(_token, beneficiaryPayable, amount);
     }
 
     /**
@@ -1112,5 +1178,29 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable {
      */
     function getCurrentTime() internal view virtual returns (uint256) {
         return block.timestamp;
+    }
+
+    // Chainlink Automation-compatible methods
+    function checkUpkeep(bytes calldata) external view returns (bool upkeepNeeded, bytes memory performData) {
+        for (uint256 i = 0; i < vestingSchedulesIds.length; i++) {
+            bytes32 id = vestingSchedulesIds[i];
+            VestingSchedule memory vs = vestingSchedules[id];
+
+            if (vs.released < vs.amountTotal) {
+                uint256 releasable = _computeReleasableAmount(vs);
+                if (releasable > 0) {
+                    upkeepNeeded = true;
+                    performData = abi.encode(id, releasable);
+                    return (upkeepNeeded, performData);
+                }
+            }
+        }
+
+        return (false, bytes(""));
+    }
+
+    function performUpkeep(bytes calldata performData) external {
+        (bytes32 id, uint256 amount) = abi.decode(performData, (bytes32, uint256));
+        release(id, amount / DECIMAL_MULTIPLIER); // pass base unit, because `release` multiplies by DECIMAL_MULTIPLIER
     }
 }
