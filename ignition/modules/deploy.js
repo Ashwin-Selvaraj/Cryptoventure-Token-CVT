@@ -44,8 +44,31 @@ async function main() {
 
     // Deploying Multisig Contract
     console.log("Deploying Multisig Contract...");
+    
+    // Validate number of confirmations required
+    const numConfirmationsRequired = parseInt(process.env.NUM_CONFIRMATIONS_REQUIRED);
+    if (!numConfirmationsRequired || numConfirmationsRequired <= 0) {
+        throw new Error("NUM_CONFIRMATIONS_REQUIRED must be greater than 0");
+    }
+
+    // Get all owners from environment variables
+    const owners = [];
+    let ownerIndex = 1;
+    while (process.env[`MULTISIG_OWNER_${ownerIndex}`]) {
+        owners.push(process.env[`MULTISIG_OWNER_${ownerIndex}`]);
+        ownerIndex++;
+    }
+
+    if (owners.length === 0) {
+        throw new Error("At least one owner must be specified in environment variables");
+    }
+
     const MultisigFactory = await ethers.getContractFactory("CVTMultisig");
-    const multisig = await MultisigFactory.connect(deployer).deploy([process.env.MULTISIG_OWNER_1, process.env.MULTISIG_OWNER_2], 1, cvt.target);
+    const multisig = await MultisigFactory.connect(deployer).deploy(
+        owners, 
+        numConfirmationsRequired, 
+        cvt.target
+    );
     console.log("Waiting for deployment confirmation...");
     await delay(5000); // Increased delay for better reliability
     await multisig.waitForDeployment();
