@@ -37,7 +37,7 @@ async function main() {
   try {
     // Deploying CVT Token Contract
     console.log("Deploying CVT Token Contract...");
-    const CVTFactory = await ethers.getContractFactory("CVTToken");
+    const CVTFactory = await ethers.getContractFactory("CVToken");
     const cvt = await CVTFactory.connect(deployer).deploy();
     console.log("Waiting for deployment confirmation...");
     await delay(5000); // Increased delay for better reliability

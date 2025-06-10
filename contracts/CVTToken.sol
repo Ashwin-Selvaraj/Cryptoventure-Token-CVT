@@ -364,367 +364,51 @@ abstract contract ERC20Capped is Context, ERC20 {
     }
 }
 
-/**
- * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
- * behind a proxy. Since proxied contracts do not make use of a constructor, it's common to move constructor logic to an
- * external initializer function, usually called `initialize`. It then becomes necessary to protect this initializer
- * function so it can only be called once. The {initializer} modifier provided by this contract will have this effect.
- *
- * The initialization functions use a version number. Once a version number is used, it is consumed and cannot be
- * reused. This mechanism prevents re-execution of each "step" but allows the creation of new initialization steps in
- * case an upgrade adds a module that needs to be initialized.
- *
- * For example:
- *
- * [.hljs-theme-light.nopadding]
- * ```solidity
- * contract MyToken is ERC20Upgradeable {
- *     function initialize() initializer public {
- *         __ERC20_init("MyToken", "MTK");
- *     }
- * }
- *
- * contract MyTokenV2 is MyToken, ERC20PermitUpgradeable {
- *     function initializeV2() reinitializer(2) public {
- *         __ERC20Permit_init("MyToken");
- *     }
- * }
- * ```
- *
- * TIP: To avoid leaving the proxy in an uninitialized state, the initializer function should be called as early as
- * possible by providing the encoded function call as the `_data` argument to {ERC1967Proxy-constructor}.
- *
- * CAUTION: When used with inheritance, manual care must be taken to not invoke a parent initializer twice, or to ensure
- * that all initializers are idempotent. This is not verified automatically as constructors are by Solidity.
- *
- * [CAUTION]
- * ====
- * Avoid leaving a contract uninitialized.
- *
- * An uninitialized contract can be taken over by an attacker. This applies to both a proxy and its implementation
- * contract, which may impact the proxy. To prevent the implementation contract from being used, you should invoke
- * the {_disableInitializers} function in the constructor to automatically lock it when it is deployed:
- *
- * [.hljs-theme-light.nopadding]
- * ```
- * /// @custom:oz-upgrades-unsafe-allow constructor
- * constructor() {
- *     _disableInitializers();
- * }
- * ```
- * ====
- */
-abstract contract Initializable {
-    /**
-     * @dev Storage of the initializable contract.
-     *
-     * It's implemented on a custom ERC-7201 namespace to reduce the risk of storage collisions
-     * when using with upgradeable contracts.
-     *
-     * @custom:storage-location erc7201:openzeppelin.storage.Initializable
-     */
-    struct InitializableStorage {
-        /**
-         * @dev Indicates that the contract has been initialized.
-         */
-        uint64 _initialized;
-        /**
-         * @dev Indicates that the contract is in the process of being initialized.
-         */
-        bool _initializing;
-    }
+abstract contract ReentrancyGuard {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
 
-    // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant INITIALIZABLE_STORAGE = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
+    uint256 private _status;
 
-    /**
-     * @dev The contract is already initialized.
-     */
-    error InvalidInitialization();
-
-    /**
-     * @dev The contract is not initializing.
-     */
-    error NotInitializing();
-
-    /**
-     * @dev Triggered when the contract has been initialized or reinitialized.
-     */
-    event Initialized(uint64 version);
-
-    /**
-     * @dev A modifier that defines a protected initializer function that can be invoked at most once. In its scope,
-     * `onlyInitializing` functions can be used to initialize parent contracts.
-     *
-     * Similar to `reinitializer(1)`, except that in the context of a constructor an `initializer` may be invoked any
-     * number of times. This behavior in the constructor can be useful during testing and is not expected to be used in
-     * production.
-     *
-     * Emits an {Initialized} event.
-     */
-    modifier initializer() {
-        // solhint-disable-next-line var-name-mixedcase
-        InitializableStorage storage $ = _getInitializableStorage();
-
-        // Cache values to avoid duplicated sloads
-        bool isTopLevelCall = !$._initializing;
-        uint64 initialized = $._initialized;
-
-        // Allowed calls:
-        // - initialSetup: the contract is not in the initializing state and no previous version was
-        //                 initialized
-        // - construction: the contract is initialized at version 1 (no reinitialization) and the
-        //                 current contract is just being deployed
-        bool initialSetup = initialized == 0 && isTopLevelCall;
-        bool construction = initialized == 1 && address(this).code.length == 0;
-
-        if (!initialSetup && !construction) {
-            revert InvalidInitialization();
-        }
-        $._initialized = 1;
-        if (isTopLevelCall) {
-            $._initializing = true;
-        }
-        _;
-        if (isTopLevelCall) {
-            $._initializing = false;
-            emit Initialized(1);
-        }
-    }
-
-    /**
-     * @dev A modifier that defines a protected reinitializer function that can be invoked at most once, and only if the
-     * contract hasn't been initialized to a greater version before. In its scope, `onlyInitializing` functions can be
-     * used to initialize parent contracts.
-     *
-     * A reinitializer may be used after the original initialization step. This is essential to configure modules that
-     * are added through upgrades and that require initialization.
-     *
-     * When `version` is 1, this modifier is similar to `initializer`, except that functions marked with `reinitializer`
-     * cannot be nested. If one is invoked in the context of another, execution will revert.
-     *
-     * Note that versions can jump in increments greater than 1; this implies that if multiple reinitializers coexist in
-     * a contract, executing them in the right order is up to the developer or operator.
-     *
-     * WARNING: Setting the version to 2**64 - 1 will prevent any future reinitialization.
-     *
-     * Emits an {Initialized} event.
-     */
-    modifier reinitializer(uint64 version) {
-        // solhint-disable-next-line var-name-mixedcase
-        InitializableStorage storage $ = _getInitializableStorage();
-
-        if ($._initializing || $._initialized >= version) {
-            revert InvalidInitialization();
-        }
-        $._initialized = version;
-        $._initializing = true;
-        _;
-        $._initializing = false;
-        emit Initialized(version);
-    }
-
-    /**
-     * @dev Modifier to protect an initialization function so that it can only be invoked by functions with the
-     * {initializer} and {reinitializer} modifiers, directly or indirectly.
-     */
-    modifier onlyInitializing() {
-        _checkInitializing();
-        _;
-    }
-
-    /**
-     * @dev Reverts if the contract is not in an initializing state. See {onlyInitializing}.
-     */
-    function _checkInitializing() internal view virtual {
-        if (!_isInitializing()) {
-            revert NotInitializing();
-        }
-    }
-
-    /**
-     * @dev Locks the contract, preventing any future reinitialization. This cannot be part of an initializer call.
-     * Calling this in the constructor of a contract will prevent that contract from being initialized or reinitialized
-     * to any version. It is recommended to use this to lock implementation contracts that are designed to be called
-     * through proxies.
-     *
-     * Emits an {Initialized} event the first time it is successfully executed.
-     */
-    function _disableInitializers() internal virtual {
-        // solhint-disable-next-line var-name-mixedcase
-        InitializableStorage storage $ = _getInitializableStorage();
-
-        if ($._initializing) {
-            revert InvalidInitialization();
-        }
-        if ($._initialized != type(uint64).max) {
-            $._initialized = type(uint64).max;
-            emit Initialized(type(uint64).max);
-        }
-    }
-
-    /**
-     * @dev Returns the highest version that has been initialized. See {reinitializer}.
-     */
-    function _getInitializedVersion() internal view returns (uint64) {
-        return _getInitializableStorage()._initialized;
-    }
-
-    /**
-     * @dev Returns `true` if the contract is currently initializing. See {onlyInitializing}.
-     */
-    function _isInitializing() internal view returns (bool) {
-        return _getInitializableStorage()._initializing;
-    }
-
-    /**
-     * @dev Pointer to storage slot. Allows integrators to override it with a custom storage location.
-     *
-     * NOTE: Consider following the ERC-7201 formula to derive storage locations.
-     */
-    function _initializableStorageSlot() internal pure virtual returns (bytes32) {
-        return INITIALIZABLE_STORAGE;
-    }
-
-    /**
-     * @dev Returns a pointer to the storage namespace.
-     */
-    // solhint-disable-next-line var-name-mixedcase
-    function _getInitializableStorage() private pure returns (InitializableStorage storage $) {
-        bytes32 slot = _initializableStorageSlot();
-        assembly {
-            $.slot := slot
-        }
-    }
-}
-
-/**
- * @dev Contract module that helps prevent reentrant calls to a function.
- *
- * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
- * available, which can be applied to functions to make sure there are no nested
- * (reentrant) calls to them.
- *
- * Note that because there is a single `nonReentrant` guard, functions marked as
- * `nonReentrant` may not call one another. This can be worked around by making
- * those functions `private`, and then adding `external` `nonReentrant` entry
- * points to them.
- *
- * TIP: If EIP-1153 (transient storage) is available on the chain you're deploying at,
- * consider using {ReentrancyGuardTransient} instead.
- *
- * TIP: If you would like to learn more about reentrancy and alternative ways
- * to protect against it, check out our blog post
- * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
- */
-abstract contract ReentrancyGuardUpgradeable is Initializable {
-    // Booleans are more expensive than uint256 or any type that takes up a full
-    // word because each write operation emits an extra SLOAD to first read the
-    // slot's contents, replace the bits taken up by the boolean, and then write
-    // back. This is the compiler's defense against contract upgrades and
-    // pointer aliasing, and it cannot be disabled.
-
-    // The values being non-zero value makes deployment a bit more expensive,
-    // but in exchange the refund on every call to nonReentrant will be lower in
-    // amount. Since refunds are capped to a percentage of the total
-    // transaction's gas, it is best to keep them low in cases like this one, to
-    // increase the likelihood of the full refund coming into effect.
-    uint256 private constant NOT_ENTERED = 1;
-    uint256 private constant ENTERED = 2;
-
-    /// @custom:storage-location erc7201:openzeppelin.storage.ReentrancyGuard
-    struct ReentrancyGuardStorage {
-        uint256 _status;
-    }
-
-    // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.ReentrancyGuard")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant ReentrancyGuardStorageLocation = 0x9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f00;
-
-    function _getReentrancyGuardStorage() private pure returns (ReentrancyGuardStorage storage $) {
-        assembly {
-            $.slot := ReentrancyGuardStorageLocation
-        }
-    }
-
-    /**
-     * @dev Unauthorized reentrant call.
-     */
-    error ReentrancyGuardReentrantCall();
-
-    function __ReentrancyGuard_init() internal onlyInitializing {
-        __ReentrancyGuard_init_unchained();
-    }
-
-    function __ReentrancyGuard_init_unchained() internal onlyInitializing {
-        ReentrancyGuardStorage storage $ = _getReentrancyGuardStorage();
-        $._status = NOT_ENTERED;
+    constructor() {
+        _status = _NOT_ENTERED;
     }
 
     /**
      * @dev Prevents a contract from calling itself, directly or indirectly.
-     * Calling a `nonReentrant` function from another `nonReentrant`
-     * function is not supported. It is possible to prevent this from happening
-     * by making the `nonReentrant` function external, and making it call a
-     * `private` function that does the actual work.
      */
     modifier nonReentrant() {
-        _nonReentrantBefore();
-        _;
-        _nonReentrantAfter();
-    }
-
-    function _nonReentrantBefore() private {
-        ReentrancyGuardStorage storage $ = _getReentrancyGuardStorage();
-        // On the first call to nonReentrant, _status will be NOT_ENTERED
-        if ($._status == ENTERED) {
-            revert ReentrancyGuardReentrantCall();
-        }
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
 
         // Any calls to nonReentrant after this point will fail
-        $._status = ENTERED;
-    }
+        _status = _ENTERED;
 
-    function _nonReentrantAfter() private {
-        ReentrancyGuardStorage storage $ = _getReentrancyGuardStorage();
+        _;
+
         // By storing the original value once again, a refund is triggered (see
         // https://eips.ethereum.org/EIPS/eip-2200)
-        $._status = NOT_ENTERED;
-    }
-
-    /**
-     * @dev Returns true if the reentrancy guard is currently set to "entered", which indicates there is a
-     * `nonReentrant` function in the call stack.
-     */
-    function _reentrancyGuardEntered() internal view returns (bool) {
-        ReentrancyGuardStorage storage $ = _getReentrancyGuardStorage();
-        return $._status == ENTERED;
+        _status = _NOT_ENTERED;
     }
 }
 
-contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuardUpgradeable {
+contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard {
 
     constructor()
         ERC20("Crypto Venture Trade", "CVT")
         ERC20Capped(20000000 * (10 ** decimals()))
     {
-        __ReentrancyGuard_init();
         _mint(_msgSender(), 20000000 * (10 ** decimals()));
     }
 
-    // Function to disable transfer limit (only dev can call)
-    function disableTransferLimit() public {
-        require(msg.sender == dev, "Only dev can disable transfer limit");
+    // Function to disable transfer limit (only Owner can call)
+    function disableTransferLimit() public onlyOwner{
         cancleLimit();
     }
 
     // Function to check if transfer limit is enabled
     function isTransferLimitEnabled() public view returns (bool) {
         return isLimit;
-    }
-
-    // Function to get dev address
-    function getDevAddress() public view returns (address) {
-        return dev;
     }
 
     modifier validAddressAndAmount(address _address, uint256 amount){
@@ -735,13 +419,13 @@ contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard
 
 
     // Override burn function
-    function burn(uint256 amount) public override onlyOwner {
+    function burn(uint256 amount) public override onlyOwner nonReentrant {
         require(amount > 0, "Amount must be greater than 0");
         _burn(_msgSender(), amount);
     }
 
     // Override burnFrom function 
-    function burnFrom(address account, uint256 amount) public override onlyOwner {
+    function burnFrom(address account, uint256 amount) public override onlyOwner nonReentrant {
         require(amount > 0, "Amount must be greater than 0");
         require(account != address(0), "Invalid account address");
         _spendAllowance(account, _msgSender(), amount);
@@ -749,27 +433,27 @@ contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard
     }
 
     // Override transfer function 
-    function transfer(address to, uint256 amount) public override validAddressAndAmount(to, amount) returns (bool) {
+    function transfer(address to, uint256 amount) public override validAddressAndAmount(to, amount) nonReentrant returns (bool) {
         return super.transfer(to, amount);
     }
 
     // Override transferFrom function 
-    function transferFrom(address from, address to, uint256 amount) public override validAddressAndAmount(to, amount) returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public override validAddressAndAmount(to, amount) nonReentrant returns (bool) {
         return super.transferFrom(from, to, amount);
     }
 
     // Override approve function 
-    function approve(address spender, uint256 amount) public override validAddressAndAmount(spender, amount) returns (bool) {
+    function approve(address spender, uint256 amount) public override validAddressAndAmount(spender, amount) nonReentrant returns (bool) {
         return super.approve(spender, amount);
     }
 
     // Override increaseAllowance function
-    function increaseAllowance(address spender, uint256 addedValue) public override validAddressAndAmount(spender, addedValue) returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) public override validAddressAndAmount(spender, addedValue) nonReentrant returns (bool) {
         return super.increaseAllowance(spender, addedValue);
     }
 
     // Override decreaseAllowance function 
-    function decreaseAllowance(address spender, uint256 subtractedValue) public override validAddressAndAmount(spender, subtractedValue) returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) public override validAddressAndAmount(spender, subtractedValue) nonReentrant returns (bool) {
         return super.decreaseAllowance(spender, subtractedValue);
     }
 

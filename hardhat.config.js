@@ -6,11 +6,13 @@ console.log("BSCScan API Key loaded:", process.env.BSCSCAN_API_KEY ? "Yes" : "No
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.28",
-  settings: {
-    optimizer: {
-      enabled: true,
-      runs: 200,
+  solidity: {
+    version: "0.8.28", // Or your preferred Solidity version
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200, // Adjust as needed
+      },
     },
   },
   networks: {
