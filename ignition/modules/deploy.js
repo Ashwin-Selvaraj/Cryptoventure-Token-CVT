@@ -20,7 +20,9 @@ async function main() {
     provider = new ethers.JsonRpcProvider(process.env.MATIC_RPC_URL);
   } else if (network === "BSCTestnet") {
     provider = new ethers.JsonRpcProvider(process.env.BSC_TESTNET_RPC_URL);
-  } else if (network === "scrollSepolia") {
+  } else if (network === "BSCMainnet") {
+    provider = new ethers.JsonRpcProvider(process.env.BSC_MAINNET_RPC_URL);
+  }else if (network === "scrollSepolia") {
     provider = new ethers.JsonRpcProvider(process.env.SCROLL_SEPOLIA_RPC_URL);
   } else {
     console.error("Invalid network provided.");
@@ -35,7 +37,7 @@ async function main() {
   try {
     // Deploying CVT Token Contract
     console.log("Deploying CVT Token Contract...");
-    const CVTFactory = await ethers.getContractFactory("CVToken");
+    const CVTFactory = await ethers.getContractFactory("CVTToken");
     const cvt = await CVTFactory.connect(deployer).deploy();
     console.log("Waiting for deployment confirmation...");
     await delay(5000); // Increased delay for better reliability

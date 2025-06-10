@@ -701,7 +701,7 @@ abstract contract ReentrancyGuardUpgradeable is Initializable {
     }
 }
 
-contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuardUpgradeable {
+contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuardUpgradeable {
 
     constructor()
         ERC20("Crypto Venture Trade", "CVT")
@@ -717,40 +717,49 @@ contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuardU
         _;
     }
 
-    // Function to burn tokens (only owner)
-    function burnTokens(uint256 amount) external onlyOwner nonReentrant {
+
+    // Override burn function to handle decimals
+    function burn(uint256 amount) public override onlyOwner {
         require(amount > 0, "Amount must be greater than 0");
-        uint256 amountWithDecimals = amount * (10 ** decimals());
-        _burn(_msgSender(), amountWithDecimals);
+        _burn(_msgSender(), amount);
+    }
+
+    // Override burnFrom function to handle decimals
+    function burnFrom(address account, uint256 amount) public override onlyOwner {
+        require(amount > 0, "Amount must be greater than 0");
+        require(account != address(0), "Invalid account address");
+        _spendAllowance(account, _msgSender(), amount);
+        _burn(account, amount);
     }
 
     // Override transfer function to handle decimals
-    function transfer(address to, uint256 amount) public override returns (bool) {
-        uint256 amountWithDecimals = amount * (10 ** decimals());
-        return super.transfer(to, amountWithDecimals);
+    function transfer(address to, uint256 amount) public override validAddressAndAmount(to, amount) returns (bool) {
+        return super.transfer(to, amount);
     }
 
     // Override transferFrom function to handle decimals
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        uint256 amountWithDecimals = amount * (10 ** decimals());
-        return super.transferFrom(from, to, amountWithDecimals);
+    function transferFrom(address from, address to, uint256 amount) public override validAddressAndAmount(to, amount) returns (bool) {
+        return super.transferFrom(from, to, amount);
     }
 
     // Override approve function to handle decimals
-    function approve(address spender, uint256 amount) public override returns (bool) {
-        uint256 amountWithDecimals = amount * (10 ** decimals());
-        return super.approve(spender, amountWithDecimals);
+    function approve(address spender, uint256 amount) public override validAddressAndAmount(spender, amount) returns (bool) {
+        return super.approve(spender, amount);
     }
 
     // Override increaseAllowance function to handle decimals
-    function increaseAllowance(address spender, uint256 addedValue) public override returns (bool) {
-        uint256 amountWithDecimals = addedValue * (10 ** decimals());
-        return super.increaseAllowance(spender, amountWithDecimals);
+    function increaseAllowance(address spender, uint256 addedValue) public override validAddressAndAmount(spender, addedValue) returns (bool) {
+        return super.increaseAllowance(spender, addedValue);
     }
 
     // Override decreaseAllowance function to handle decimals
-    function decreaseAllowance(address spender, uint256 subtractedValue) public override returns (bool) {
-        uint256 amountWithDecimals = subtractedValue * (10 ** decimals());
-        return super.decreaseAllowance(spender, amountWithDecimals);
+    function decreaseAllowance(address spender, uint256 subtractedValue) public override validAddressAndAmount(spender, subtractedValue) returns (bool) {
+        return super.decreaseAllowance(spender, subtractedValue);
+    }
+
+    // Override _mint to enforce the cap
+    function _mint(address account, uint256 amount) internal override(ERC20) {
+        require(totalSupply() + amount <= cap(), "ERC20Capped: cap exceeded");
+        super._mint(account, amount);
     }
 }

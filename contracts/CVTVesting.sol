@@ -864,9 +864,6 @@ abstract contract AutomationCompatible is AutomationBase, AutomationCompatibleIn
 
 
 contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatibleInterface{
-    // Add decimals constant
-    uint256 public constant DECIMALS = 18;
-    uint256 public constant DECIMAL_MULTIPLIER = 10**DECIMALS;
 
     struct VestingSchedule {
         // beneficiary of tokens after they are released
@@ -925,7 +922,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatible
      * @param _cliff duration in seconds of the cliff in which tokens will begin to vest
      * @param _duration duration in seconds of the period in which the tokens will vest
      * @param _slicePeriodSeconds duration of a slice period for the vesting in seconds
-     * @param _amount total amount of tokens to be released at the end of the vesting (in base units)
+     * @param _amount total amount of tokens to be released at the end of the vesting (in smallest unit, e.g., wei)
      */
     function createVestingSchedule(
         address _beneficiary,
@@ -935,11 +932,8 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatible
         uint256 _slicePeriodSeconds,
         uint256 _amount
     ) external onlyOwner {
-        // Convert amount to wei
-        uint256 amountInWei = _amount * DECIMAL_MULTIPLIER;
-        
         require(
-            getWithdrawableAmount() >= amountInWei,
+            getWithdrawableAmount() >= _amount,
             "TokenVesting: cannot create vesting schedule because not sufficient tokens"
         );
         require(_duration > 0, "TokenVesting: duration must be > 0");
@@ -959,10 +953,10 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatible
             _start,
             _duration,
             _slicePeriodSeconds,
-            amountInWei,
+            _amount,
             0
         );
-        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount + amountInWei;
+        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount + _amount;
         vestingSchedulesIds.push(vestingScheduleId);
         uint256 currentVestingCount = holdersVestingCount[_beneficiary];
         holdersVestingCount[_beneficiary] = currentVestingCount + 1;
@@ -970,12 +964,11 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatible
 
     /**
      * @notice Withdraw the specified amount if possible.
-     * @param amount the amount to withdraw (in base units)
+     * @param amount the amount to withdraw (in smallest unit, e.g., wei)
      */
     function withdraw(uint256 amount) external nonReentrant onlyOwner {
-        uint256 amountInWei = amount * DECIMAL_MULTIPLIER;
         require(
-            getWithdrawableAmount() >= amountInWei,
+            getWithdrawableAmount() >= amount,
             "TokenVesting: not enough withdrawable funds"
         );
         SafeTransferLib.safeTransfer(_token, msg.sender, amount);
@@ -984,26 +977,25 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatible
     /**
      * @notice Release vested amount of tokens.
      * @param vestingScheduleId the vesting schedule identifier
-     * @param amount the amount to release (in base units)
+     * @param amount the amount to release (in smallest unit, e.g., wei)
      */
     function release(
         bytes32 vestingScheduleId,
         uint256 amount
     ) public nonReentrant {
-        uint256 amountInWei = amount * DECIMAL_MULTIPLIER;
         VestingSchedule storage vestingSchedule = vestingSchedules[
             vestingScheduleId
         ];
         uint256 vestedAmount = _computeReleasableAmount(vestingSchedule);
         require(
-            vestedAmount >= amountInWei,
+            vestedAmount >= amount,
             "TokenVesting: cannot release tokens, not enough vested tokens"
         );
-        vestingSchedule.released = vestingSchedule.released + amountInWei;
+        vestingSchedule.released = vestingSchedule.released + amount;
         address payable beneficiaryPayable = payable(
             vestingSchedule.beneficiary
         );
-        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount - amountInWei;
+        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount - amount;
         SafeTransferLib.safeTransfer(_token, beneficiaryPayable, amount);
     }
 
@@ -1201,6 +1193,6 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatible
 
     function performUpkeep(bytes calldata performData) external {
         (bytes32 id, uint256 amount) = abi.decode(performData, (bytes32, uint256));
-        release(id, amount / DECIMAL_MULTIPLIER); // pass base unit, because `release` multiplies by DECIMAL_MULTIPLIER
+        release(id, amount); 
     }
 }

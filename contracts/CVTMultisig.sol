@@ -6,6 +6,7 @@ interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
+    function decimals() external view returns (uint8);
 }
 
 contract CVTMultisig {
@@ -25,6 +26,7 @@ contract CVTMultisig {
     address[] public owners;
     mapping(address => bool) public isOwner;
     uint256 public numConfirmationsRequired;
+    uint256 public constant DECIMALS = 18;
 
     struct Transaction {
         address to;
@@ -59,6 +61,12 @@ contract CVTMultisig {
         _;
     }
 
+    modifier validAmount(uint256 _amount) {
+        require(_amount > 0, "amount must be greater than 0");
+        require(_amount <= IERC20(token).balanceOf(address(this)), "insufficient balance");
+        _;
+    }
+
     constructor(
         address[] memory _owners, 
         uint256 _numConfirmationsRequired,
@@ -70,6 +78,7 @@ contract CVTMultisig {
             "invalid number of required confirmations"
         );
         require(_token != address(0), "invalid token address");
+        require(IERC20(_token).decimals() == DECIMALS, "invalid token decimals");
 
         for (uint256 i = 0; i < _owners.length; i++) {
             address owner = _owners[i];
@@ -85,8 +94,11 @@ contract CVTMultisig {
         token = _token;
     }
 
-    function depositTokens(uint256 _amount) external {
-        require(_amount > 0, "amount must be greater than 0");
+    /**
+     * @notice Deposit tokens into the multisig wallet
+     * @param _amount Amount of tokens to deposit (in smallest unit, e.g., wei)
+     */
+    function depositTokens(uint256 _amount) external validAmount(_amount) {
         require(
             IERC20(token).transferFrom(msg.sender, address(this), _amount),
             "transfer failed"
@@ -94,10 +106,19 @@ contract CVTMultisig {
         emit TokenDeposit(msg.sender, _amount, IERC20(token).balanceOf(address(this)));
     }
 
-    function submitTransaction(address _to, uint256 _value, bytes memory _data)
-        public
-        onlyOwner
-    {
+    /**
+     * @notice Submit a new transaction
+     * @param _to Address to send tokens to
+     * @param _value Amount of tokens to send (in smallest unit, e.g., wei)
+     * @param _data Additional data to send with the transaction
+     */
+    function submitTransaction(
+        address _to, 
+        uint256 _value, 
+        bytes memory _data
+    ) public onlyOwner validAmount(_value) {
+        require(_to != address(0), "invalid recipient address");
+        
         uint256 txIndex = transactions.length;
 
         transactions.push(

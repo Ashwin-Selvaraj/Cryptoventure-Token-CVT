@@ -7,27 +7,21 @@ console.log("BSCScan API Key loaded:", process.env.BSCSCAN_API_KEY ? "Yes" : "No
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: "0.8.28",
+  settings: {
+    optimizer: {
+      enabled: true,
+      runs: 200,
+    },
+  },
   networks: {
-    sepolia: {
-      url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: [process.env.PRIVATE_KEY],
-    },
-    matic: {
-      url: `https://autumn-falling-firefly.matic-testnet.quiknode.pro/c8e3ff914ff86361fd66c6de0e7aed3c878963fb/`,
-      accounts: [process.env.PRIVATE_KEY],
-    },
-    scrollSepolia: {
-      url: "https://winter-ultra-sheet.scroll-testnet.quiknode.pro/3d92ec6b4d0bd800befb790f751b5b79441575a1/",
-      accounts: [process.env.PRIVATE_KEY],
-    },
-    HederaTestnet:
-    {
-      url:`https://pool.arkhia.io/hedera/mainnet/api/v1/${process.env.HBAR_API_KEY}`,
-      accounts:[process.env.PRIVATE_KEY],
-    },
     BSCTestnet:
     {
       url:"https://restless-responsive-county.bsc-testnet.quiknode.pro/e8596af8dc28ad6ae70ea957eea500d4af507877",
+      accounts:[process.env.PRIVATE_KEY]
+    },
+    BSCMainnet:
+    {
+      url:"https://attentive-red-layer.bsc.quiknode.pro/7e90189cf42a8e1cbbfaa0537e7f15eab4c2c2f1/",
       accounts:[process.env.PRIVATE_KEY]
     }
   },
