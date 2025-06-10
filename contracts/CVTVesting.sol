@@ -899,6 +899,7 @@ contract CVTVesting is ReentrancyGuardUpgradeable, Ownable, AutomationCompatible
     constructor(address token_){
         // Check that the token address is not 0x0.
         require(token_ != address(0x0));
+        __ReentrancyGuard_init();
         // Set the token address.
         _token = ERC20(token_);
     }

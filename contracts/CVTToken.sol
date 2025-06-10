@@ -707,9 +707,25 @@ contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard
         ERC20("Crypto Venture Trade", "CVT")
         ERC20Capped(20000000 * (10 ** decimals()))
     {
+        __ReentrancyGuard_init();
         _mint(_msgSender(), 20000000 * (10 ** decimals()));
     }
 
+    // Function to disable transfer limit (only dev can call)
+    function disableTransferLimit() public {
+        require(msg.sender == dev, "Only dev can disable transfer limit");
+        cancleLimit();
+    }
+
+    // Function to check if transfer limit is enabled
+    function isTransferLimitEnabled() public view returns (bool) {
+        return isLimit;
+    }
+
+    // Function to get dev address
+    function getDevAddress() public view returns (address) {
+        return dev;
+    }
 
     modifier validAddressAndAmount(address _address, uint256 amount){
         require(amount > 0, "Invalid amount: should not be zero");
@@ -718,13 +734,13 @@ contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard
     }
 
 
-    // Override burn function to handle decimals
+    // Override burn function
     function burn(uint256 amount) public override onlyOwner {
         require(amount > 0, "Amount must be greater than 0");
         _burn(_msgSender(), amount);
     }
 
-    // Override burnFrom function to handle decimals
+    // Override burnFrom function 
     function burnFrom(address account, uint256 amount) public override onlyOwner {
         require(amount > 0, "Amount must be greater than 0");
         require(account != address(0), "Invalid account address");
@@ -732,27 +748,27 @@ contract CVTToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard
         _burn(account, amount);
     }
 
-    // Override transfer function to handle decimals
+    // Override transfer function 
     function transfer(address to, uint256 amount) public override validAddressAndAmount(to, amount) returns (bool) {
         return super.transfer(to, amount);
     }
 
-    // Override transferFrom function to handle decimals
+    // Override transferFrom function 
     function transferFrom(address from, address to, uint256 amount) public override validAddressAndAmount(to, amount) returns (bool) {
         return super.transferFrom(from, to, amount);
     }
 
-    // Override approve function to handle decimals
+    // Override approve function 
     function approve(address spender, uint256 amount) public override validAddressAndAmount(spender, amount) returns (bool) {
         return super.approve(spender, amount);
     }
 
-    // Override increaseAllowance function to handle decimals
+    // Override increaseAllowance function
     function increaseAllowance(address spender, uint256 addedValue) public override validAddressAndAmount(spender, addedValue) returns (bool) {
         return super.increaseAllowance(spender, addedValue);
     }
 
-    // Override decreaseAllowance function to handle decimals
+    // Override decreaseAllowance function 
     function decreaseAllowance(address spender, uint256 subtractedValue) public override validAddressAndAmount(spender, subtractedValue) returns (bool) {
         return super.decreaseAllowance(spender, subtractedValue);
     }
