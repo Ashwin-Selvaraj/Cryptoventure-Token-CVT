@@ -95,9 +95,6 @@ interface IERC20Metadata is IERC20 {
 
 
 contract ERC20 is Context, IERC20, IERC20Metadata {
-    address public dev;
-    bool public isLimit = true;
-
     mapping(address => uint256) private _balances;
 
     mapping(address => mapping(address => uint256)) private _allowances;
@@ -109,12 +106,6 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
-        dev = msg.sender;
-    }
-
-    function cancleLimit() public {
-        require(msg.sender == dev);
-        isLimit = false;
     }
 
     /**
@@ -232,10 +223,6 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     ) internal virtual {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
-
-        if (isLimit && from != dev) {
-            require(amount <= 200000 ether);
-        }
 
         _beforeTokenTransfer(from, to, amount);
 
@@ -358,10 +345,6 @@ abstract contract ERC20Capped is Context, ERC20 {
     function cap() public view virtual returns (uint256) {
         return _cap;
     }
-
-    function _update(address from, address to, uint256 value) internal virtual {
-        _update(from, to, value);
-    }
 }
 
 abstract contract ReentrancyGuard {
@@ -399,16 +382,6 @@ contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard 
         ERC20Capped(20000000 * (10 ** decimals()))
     {
         _mint(_msgSender(), 20000000 * (10 ** decimals()));
-    }
-
-    // Function to disable transfer limit (only Owner can call)
-    function disableTransferLimit() public onlyOwner{
-        cancleLimit();
-    }
-
-    // Function to check if transfer limit is enabled
-    function isTransferLimitEnabled() public view returns (bool) {
-        return isLimit;
     }
 
     modifier validAddressAndAmount(address _address, uint256 amount){

@@ -556,6 +556,23 @@ abstract contract AutomationCompatible is AutomationBase, AutomationCompatibleIn
 
 contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
 
+    // Events
+    event VestingScheduleCreated(
+        bytes32 indexed vestingScheduleId,
+        address indexed beneficiary,
+        uint256 start,
+        uint256 cliff,
+        uint256 duration,
+        uint256 slicePeriodSeconds,
+        uint256 amount
+    );
+
+    event TokensReleased(
+        bytes32 indexed vestingScheduleId,
+        address indexed beneficiary,
+        uint256 amount
+    );
+
     struct VestingSchedule {
         // beneficiary of tokens after they are released
         address beneficiary;
@@ -651,6 +668,16 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
         vestingSchedulesIds.push(vestingScheduleId);
         uint256 currentVestingCount = holdersVestingCount[_beneficiary];
         holdersVestingCount[_beneficiary] = currentVestingCount + 1;
+
+        emit VestingScheduleCreated(
+            vestingScheduleId,
+            _beneficiary,
+            _start,
+            cliff,
+            _duration,
+            _slicePeriodSeconds,
+            _amount
+        );
     }
 
     /**
@@ -688,6 +715,12 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
         );
         vestingSchedulesTotalAmount = vestingSchedulesTotalAmount - amount;
         SafeTransferLib.safeTransfer(_token, beneficiaryPayable, amount);
+
+        emit TokensReleased(
+            vestingScheduleId,
+            vestingSchedule.beneficiary,
+            amount
+        );
     }
 
     /**
@@ -878,12 +911,12 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
                 }
             }
         }
-
         return (false, bytes(""));
     }
 
-    function performUpkeep(bytes calldata performData) external nonReentrant {
+    function performUpkeep(bytes calldata performData) external {
         (bytes32 id, uint256 amount) = abi.decode(performData, (bytes32, uint256));
-        release(id, amount); 
+        release(id, amount);
     }
 }
+
