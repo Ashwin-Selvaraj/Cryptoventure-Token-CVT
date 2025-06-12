@@ -1,7 +1,7 @@
 {
   "network": "BSCTestnet",
-  "CVTContractAddress": "0x7b04e5Cbf4084a339F8c2Ef27da3746cA0a2E8ED",
-  "MultisigContractAddress": "0x51EB41EA5335924A9732787b0A93D1BCc9A7712C",
-  "VestingContractAddress": "0x9173A9920C2396A6CF73479E0bbD5b3aA6aA692c",
-  "deploymentTime": "2025-06-11T09:46:53.563Z"
+  "CVTContractAddress": "0xf81a63970da961F1D3aB1B45e3593ba907bEe08c",
+  "MultisigContractAddress": "0x043d71316D6015e5DCA5c81719e7B4f868e8d9ab",
+  "VestingContractAddress": "0xE505edaf9F0915dba30A48C7030Eb2e3E37F9b77",
+  "deploymentTime": "2025-06-12T19:15:10.893Z"
 }
