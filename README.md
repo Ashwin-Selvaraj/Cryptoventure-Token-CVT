@@ -12,6 +12,7 @@ This is a web-based interface for deploying the CVT Token contracts using MetaMa
 - Support for multiple networks (Ethereum, BSC, Polygon, etc.)
 - Automatic contract artifact generation
 - Download deployment information
+- GitHub Pages deployment support
 
 ## How to Use
 
