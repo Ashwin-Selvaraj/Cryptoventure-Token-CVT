@@ -20,10 +20,18 @@ jobs:
           node-version: '16'
           
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
+          npm install ethers@5.7.2
+          
+      - name: Compile contracts
+        run: npx hardhat compile
         
       - name: Generate contract artifacts
-        run: node scripts/generate-artifacts.js
+        run: |
+          mkdir -p frontend-artifacts
+          node scripts/generate-artifacts.js
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
