@@ -125,7 +125,7 @@ function checkContractArtifacts() {
     try {
         // Check if contractArtifacts is defined (from contract-artifacts.js)
         if (typeof contractArtifacts === 'undefined') {
-            log('Contract artifacts not loaded. Please run the fetch-artifacts.js script first.', 'error');
+            log('Contract artifacts not loaded. Please try refreshing the page.', 'error');
             updateStatus(deploymentStatus, 'Contract artifacts not loaded', 'error');
             deployButton.disabled = true;
             return false;
@@ -325,6 +325,13 @@ window.addEventListener('load', function() {
 // Initialize application
 async function initApp() {
     console.log("Initializing application");
+    
+    // Check if we're in a GitHub Pages environment
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    if (isGitHubPages) {
+        log('Running on GitHub Pages', 'info');
+    }
+    
     if (await checkMetaMaskInstalled()) {
         // Check if already connected
         try {
@@ -337,4 +344,7 @@ async function initApp() {
             console.error('Error checking accounts:', error);
         }
     }
+    
+    // Check contract artifacts
+    checkContractArtifacts();
 } 
