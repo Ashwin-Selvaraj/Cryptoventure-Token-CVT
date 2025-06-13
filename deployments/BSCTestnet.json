@@ -1,0 +1,7 @@
+{
+  "network": "BSCTestnet",
+  "CVTContractAddress": "0xf81a63970da961F1D3aB1B45e3593ba907bEe08c",
+  "MultisigContractAddress": "0x043d71316D6015e5DCA5c81719e7B4f868e8d9ab",
+  "VestingContractAddress": "0xE505edaf9F0915dba30A48C7030Eb2e3E37F9b77",
+  "deploymentTime": "2025-06-12T19:15:10.893Z"
+}
