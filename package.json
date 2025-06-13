@@ -6,7 +6,9 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "node ignition/modules/deploy.js"
+    "deploy": "node ignition/modules/deploy.js",
+    "artifacts": "node scripts/generate-artifacts.js",
+    "start": "node serve.js"
   },
   "dependencies": {
     "dotenv": "^16.5.0"

@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 8080;
+const PORT = process.env.PORT || 3000;
 
 // Create a simple HTTP server
 const server = http.createServer((req, res) => {
@@ -26,24 +26,32 @@ const server = http.createServer((req, res) => {
         '.png': 'image/png',
         '.jpg': 'image/jpg',
         '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.wav': 'audio/wav',
+        '.mp4': 'video/mp4',
+        '.woff': 'application/font-woff',
+        '.ttf': 'application/font-ttf',
+        '.eot': 'application/vnd.ms-fontobject',
+        '.otf': 'application/font-otf',
+        '.wasm': 'application/wasm'
     };
     
-    // Set the content type
+    // Set the content type based on the file extension
     const contentType = contentTypes[extname] || 'application/octet-stream';
     
     // Read the file
     fs.readFile(filePath, (error, content) => {
         if (error) {
             if (error.code === 'ENOENT') {
-                // File not found
+                // Page not found
                 fs.readFile('./404.html', (error, content) => {
                     res.writeHead(404, { 'Content-Type': 'text/html' });
-                    res.end('File not found', 'utf-8');
+                    res.end(content, 'utf-8');
                 });
             } else {
                 // Server error
                 res.writeHead(500);
-                res.end('Server Error: ' + error.code);
+                res.end(`Server Error: ${error.code}`);
             }
         } else {
             // Success
@@ -123,8 +131,17 @@ const contractArtifacts = {
     }
 }
 
-// Start the server
+// Start the server with error handling
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
-    console.log(`Open http://localhost:${PORT}/deploy-frontend.html in your browser`);
+    console.log(`Deployment interface available at http://localhost:${PORT}/deploy-frontend.html`);
+}).on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please try a different port by setting the PORT environment variable.`);
+        console.error('Example: PORT=3001 node serve.js');
+        process.exit(1);
+    } else {
+        console.error('Server error:', error);
+        process.exit(1);
+    }
 }); 
