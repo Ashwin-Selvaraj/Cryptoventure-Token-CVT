@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.28;
-
-// import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
-// import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
-
-/**
- * @title TokenVesting
- */
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
 
  abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
@@ -364,9 +357,6 @@ abstract contract ReentrancyGuard {
     }
 }
 
-/// @notice Safe ETH and ERC20 transfer library that gracefully handles missing return values.
-/// @author Solmate (https://github.com/transmissions11/solmate/blob/main/src/utils/SafeTransferLib.sol)
-/// @dev Use with caution! Some functions in this library knowingly create dirty bits at the destination of the free memory pointer.
 library SafeTransferLib {
     /*//////////////////////////////////////////////////////////////
                              ETH OPERATIONS
@@ -554,7 +544,7 @@ interface AutomationCompatibleInterface {
 abstract contract AutomationCompatible is AutomationBase, AutomationCompatibleInterface {}
 
 
-contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
+contract CryptoVentureVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface {
 
     // Events
     event VestingScheduleCreated(
@@ -570,7 +560,19 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
     event TokensReleased(
         bytes32 indexed vestingScheduleId,
         address indexed beneficiary,
-        uint256 amount
+        uint256 amount,
+        address indexed caller
+    );
+
+    event UpkeepPerformed(
+        bytes32 indexed vestingScheduleId,
+        uint256 amount,
+        address indexed caller
+    );
+
+    event ChainlinkRegistryUpdated(
+        address indexed oldRegistry,
+        address indexed newRegistry
     );
 
     struct VestingSchedule {
@@ -597,14 +599,27 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
     mapping(bytes32 => VestingSchedule) private vestingSchedules;
     uint256 private vestingSchedulesTotalAmount;
     mapping(address => uint256) private holdersVestingCount;
+
     address public chainlinkRegistry;
 
+    modifier onlyRegistryOrOwner() {
+        require(
+            msg.sender == chainlinkRegistry || msg.sender == owner(),
+            "caller is not registry or owner"
+        );
+        _;
+    }
+
+    modifier validAddress(address _address) {
+        require(_address != address(0), "invalid address");
+        _;
+    }
 
     /**
      * @dev Creates a vesting contract.
      * @param token_ address of the ERC20 token contract
      */
-    constructor(address token_){
+    constructor(address token_) payable{
         // Check that the token address is not 0x0.
         require(token_ != address(0x0));
         // Set the token address.
@@ -700,7 +715,7 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
     function release(
         bytes32 vestingScheduleId,
         uint256 amount
-    ) public nonReentrant {
+    ) public nonReentrant onlyRegistryOrOwner {
         VestingSchedule storage vestingSchedule = vestingSchedules[
             vestingScheduleId
         ];
@@ -719,7 +734,8 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
         emit TokensReleased(
             vestingScheduleId,
             vestingSchedule.beneficiary,
-            amount
+            amount,
+            msg.sender
         );
     }
 
@@ -914,9 +930,16 @@ contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface{
         return (false, bytes(""));
     }
 
-    function performUpkeep(bytes calldata performData) external {
+    function performUpkeep(bytes calldata performData) external onlyRegistryOrOwner {
         (bytes32 id, uint256 amount) = abi.decode(performData, (bytes32, uint256));
         release(id, amount);
+        emit UpkeepPerformed(id, amount, msg.sender);
+    }
+
+    function setChainlinkRegistry(address _newRegistry) external onlyOwner validAddress(_newRegistry) {
+        address oldRegistry = chainlinkRegistry;
+        chainlinkRegistry = _newRegistry;
+        emit ChainlinkRegistryUpdated(oldRegistry, _newRegistry);
     }
 }
 

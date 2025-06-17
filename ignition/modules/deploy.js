@@ -115,7 +115,7 @@ async function main() {
 
     // Deploying Vesting Contract
     console.log("Deploying Vesting Contract...");
-    const VestingFactory = await ethers.getContractFactory("CVTVesting", deployer);
+    const VestingFactory = await ethers.getContractFactory("CryptoVentureVesting", deployer);
     const vesting = await VestingFactory.deploy(cvt.target);
     console.log("Waiting for deployment confirmation...");
     await delay(5000); // Increased delay for better reliability
