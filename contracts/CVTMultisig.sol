@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.30;
 
 interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
@@ -9,7 +9,24 @@ interface IERC20 {
     function decimals() external view returns (uint8);
 }
 
-contract CVTMultisig {
+abstract contract ReentrancyGuard {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status;
+
+    constructor() {
+        _status = _NOT_ENTERED;
+    }
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+}
+
+contract CryptoVentureMultisig is ReentrancyGuard {
     event TokenDeposit(address indexed sender, uint256 amount, uint256 balance);
     event SubmitTransaction(
         address indexed owner,
@@ -22,11 +39,14 @@ contract CVTMultisig {
     event RevokeConfirmation(address indexed owner, uint256 indexed txIndex);
     event ExecuteTransaction(address indexed owner, uint256 indexed txIndex);
 
-    address public immutable token; // CVT token address
-    address[] public owners;
+    // Immutable variables for gas optimization
+    address public immutable token;
+    uint256 public immutable numConfirmationsRequired;
+    uint256 private constant DECIMALS = 18;
+
+    // Storage variables
+    address[] private _owners;
     mapping(address => bool) public isOwner;
-    uint256 public numConfirmationsRequired;
-    uint256 public constant DECIMALS = 18;
 
     struct Transaction {
         address to;
@@ -38,8 +58,7 @@ contract CVTMultisig {
 
     // mapping from tx index => owner => bool
     mapping(uint256 => mapping(address => bool)) public isConfirmed;
-
-    Transaction[] public transactions;
+    Transaction[] private _transactions;
 
     modifier onlyOwner() {
         require(isOwner[msg.sender], "not owner");
@@ -47,12 +66,12 @@ contract CVTMultisig {
     }
 
     modifier txExists(uint256 _txIndex) {
-        require(_txIndex < transactions.length, "tx does not exist");
+        require(_txIndex < _transactions.length, "tx does not exist");
         _;
     }
 
     modifier notExecuted(uint256 _txIndex) {
-        require(!transactions[_txIndex].executed, "tx already executed");
+        require(!_transactions[_txIndex].executed, "tx already executed");
         _;
     }
 
@@ -67,69 +86,70 @@ contract CVTMultisig {
         _;
     }
 
+    modifier validAddress(address _address) {
+        require(_address != address(0), "invalid address");
+        _;
+    }
+
     constructor(
-        address[] memory _owners, 
+        address[] memory owners_, 
         uint256 _numConfirmationsRequired,
         address _token
-    ) {
-        require(_owners.length > 0, "owners required");
+    ) payable {
+        require(owners_.length > 0, "owners required");
         require(
-            _numConfirmationsRequired > 0 && _numConfirmationsRequired <= _owners.length,
+            _numConfirmationsRequired > 0 && _numConfirmationsRequired <= owners_.length,
             "invalid number of required confirmations"
         );
         require(_token != address(0), "invalid token address");
         require(IERC20(_token).decimals() == DECIMALS, "invalid token decimals");
 
-        for (uint256 i = 0; i < _owners.length; i++) {
-            address owner = _owners[i];
-
+        _owners = new address[](owners_.length);
+        for (uint256 i = 0; i < owners_.length; i++) {
+            address owner = owners_[i];
             require(owner != address(0), "invalid owner");
             require(!isOwner[owner], "owner not unique");
-
             isOwner[owner] = true;
-            owners.push(owner);
+            _owners[i] = owner;
         }
 
         numConfirmationsRequired = _numConfirmationsRequired;
         token = _token;
     }
 
-    /**
-     * @notice Deposit tokens into the multisig wallet
-     * @param _amount Amount of tokens to deposit (in smallest unit, e.g., wei)
-     */
-    function depositTokens(uint256 _amount) external validAmount(_amount) {
+    function depositTokens(uint256 _amount) 
+        external 
+        nonReentrant 
+        validAmount(_amount) 
+    {
+        address self = address(this);
         require(
-            IERC20(token).transferFrom(msg.sender, address(this), _amount),
+            IERC20(token).transferFrom(msg.sender, self, _amount),
             "transfer failed"
         );
-        emit TokenDeposit(msg.sender, _amount, IERC20(token).balanceOf(address(this)));
+        emit TokenDeposit(msg.sender, _amount, IERC20(token).balanceOf(self));
     }
 
-    /**
-     * @notice Submit a new transaction
-     * @param _to Address to send tokens to
-     * @param _value Amount of tokens to send (in smallest unit, e.g., wei)
-     * @param _data Additional data to send with the transaction
-     */
     function submitTransaction(
         address _to, 
         uint256 _value, 
         bytes memory _data
-    ) public onlyOwner validAmount(_value) {
-        require(_to != address(0), "invalid recipient address");
-        
-        uint256 txIndex = transactions.length;
-
-        transactions.push(
-            Transaction({
-                to: _to,
-                value: _value,
-                data: _data,
-                executed: false,
-                numConfirmations: 0
-            })
-        );
+    ) 
+        public 
+        onlyOwner 
+        nonReentrant 
+        validAmount(_value)
+        validAddress(_to)
+    {
+        uint256 txIndex = _transactions.length;
+        Transaction memory newTx = Transaction({
+            to: _to,
+            value: _value,
+            data: _data,
+            executed: false,
+            numConfirmations: 0
+        });
+        _transactions.push(newTx);
 
         emit SubmitTransaction(msg.sender, txIndex, _to, _value, _data);
     }
@@ -137,12 +157,13 @@ contract CVTMultisig {
     function confirmTransaction(uint256 _txIndex)
         public
         onlyOwner
+        nonReentrant
         txExists(_txIndex)
         notExecuted(_txIndex)
         notConfirmed(_txIndex)
     {
-        Transaction storage transaction = transactions[_txIndex];
-        transaction.numConfirmations += 1;
+        Transaction storage transaction = _transactions[_txIndex];
+        transaction.numConfirmations++;
         isConfirmed[_txIndex][msg.sender] = true;
         emit ConfirmTransaction(msg.sender, _txIndex);
     }
@@ -150,11 +171,11 @@ contract CVTMultisig {
     function executeTransaction(uint256 _txIndex)
         public
         onlyOwner
+        nonReentrant
         txExists(_txIndex)
         notExecuted(_txIndex)
     {
-        Transaction storage transaction = transactions[_txIndex];
-
+        Transaction storage transaction = _transactions[_txIndex];
         require(
             transaction.numConfirmations >= numConfirmationsRequired,
             "cannot execute tx"
@@ -162,16 +183,14 @@ contract CVTMultisig {
 
         transaction.executed = true;
 
-        // Transfer tokens instead of native currency
-        if (transaction.value > 0) {
+        if (transaction.value != 0) {
             require(
                 IERC20(token).transfer(transaction.to, transaction.value),
                 "token transfer failed"
             );
         }
 
-        // Execute any additional data if present
-        if (transaction.data.length > 0) {
+        if (transaction.data.length != 0) {
             (bool success,) = transaction.to.call(transaction.data);
             require(success, "tx failed");
         }
@@ -182,47 +201,34 @@ contract CVTMultisig {
     function revokeConfirmation(uint256 _txIndex)
         public
         onlyOwner
+        nonReentrant
         txExists(_txIndex)
         notExecuted(_txIndex)
     {
-        Transaction storage transaction = transactions[_txIndex];
-
+        Transaction storage transaction = _transactions[_txIndex];
         require(isConfirmed[_txIndex][msg.sender], "tx not confirmed");
 
-        transaction.numConfirmations -= 1;
+        transaction.numConfirmations--;
         isConfirmed[_txIndex][msg.sender] = false;
 
         emit RevokeConfirmation(msg.sender, _txIndex);
     }
 
+    // View functions
     function getOwners() public view returns (address[] memory) {
-        return owners;
+        return _owners;
     }
 
     function getTransactionCount() public view returns (uint256) {
-        return transactions.length;
+        return _transactions.length;
     }
 
     function getTransaction(uint256 _txIndex)
         public
         view
-        returns (
-            address to,
-            uint256 value,
-            bytes memory data,
-            bool executed,
-            uint256 numConfirmations
-        )
+        returns (Transaction memory)
     {
-        Transaction storage transaction = transactions[_txIndex];
-
-        return (
-            transaction.to,
-            transaction.value,
-            transaction.data,
-            transaction.executed,
-            transaction.numConfirmations
-        );
+        return _transactions[_txIndex];
     }
 
     function getTokenBalance() public view returns (uint256) {

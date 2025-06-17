@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.30;
 
 
 abstract contract Context {
@@ -51,8 +51,10 @@ abstract contract Ownable is Context {
 
     function _transferOwnership(address newOwner) internal virtual {
         address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
+        if (oldOwner != newOwner) {
+            _owner = newOwner;
+            emit OwnershipTransferred(oldOwner, newOwner);
+        }
     }
 }
 
@@ -206,7 +208,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         address owner = _msgSender();
         uint256 currentAllowance = allowance(owner, spender);
         require(
-            currentAllowance >= subtractedValue,
+            currentAllowance > subtractedValue,
             "ERC20: decreased allowance below zero"
         );
         unchecked {
@@ -235,7 +237,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
             _balances[from] = fromBalance - amount;
             // Overflow not possible: the sum of all balances is capped by totalSupply, and the sum is preserved by
             // decrementing then incrementing.
-            _balances[to] += amount;
+            _balances[to] = _balances[to] + amount;
         }
 
         emit Transfer(from, to, amount);
@@ -248,12 +250,13 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 
         _beforeTokenTransfer(address(0), account, amount);
 
-        _totalSupply += amount;
+        _totalSupply = _totalSupply + amount;
         unchecked {
             // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
-            _balances[account] += amount;
+            _balances[account] = _balances[account] + amount;
         }
         emit Transfer(address(0), account, amount);
+
         _afterTokenTransfer(address(0), account, amount);
     }
 
@@ -263,7 +266,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         _beforeTokenTransfer(account, address(0), amount);
 
         uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        require(accountBalance > amount, "ERC20: burn amount exceeds balance");
         unchecked {
             _balances[account] = accountBalance - amount;
             // Overflow not possible: amount <= accountBalance <= totalSupply.
@@ -283,8 +286,12 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        // Check if the new amount is different from the current allowance
+        uint256 currentAllowance = _allowances[owner][spender];
+        if (currentAllowance != amount) {
+            _allowances[owner][spender] = amount;
+            emit Approval(owner, spender, amount);
+        }
     }
 
     function _spendAllowance(
@@ -295,7 +302,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         uint256 currentAllowance = allowance(owner, spender);
         if (currentAllowance != type(uint256).max) {
             require(
-                currentAllowance >= amount,
+                currentAllowance > amount,
                 "ERC20: insufficient allowance"
             );
             unchecked {
@@ -348,6 +355,7 @@ abstract contract ERC20Capped is Context, ERC20 {
 }
 
 abstract contract ReentrancyGuard {
+    // Changed from 0 and 1 to 1 and 2 to avoid zero-to-non-zero storage writes
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
 
@@ -361,7 +369,7 @@ abstract contract ReentrancyGuard {
      * @dev Prevents a contract from calling itself, directly or indirectly.
      */
     modifier nonReentrant() {
-        // On the first call to nonReentrant, _notEntered will be true
+        // On the first call to nonReentrant, _status will be 1
         require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
 
         // Any calls to nonReentrant after this point will fail
@@ -375,32 +383,42 @@ abstract contract ReentrancyGuard {
     }
 }
 
-contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard {
+contract CryptoVentureTrade is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard {
+    // Event for initial minting
+    event InitialMint(address indexed to, uint256 amount);
 
-    constructor()
+    // Immutable variables for gas optimization
+    uint256 private immutable INITIAL_SUPPLY;
+    uint256 private immutable TOKEN_CAP;
+
+    constructor() payable
         ERC20("Crypto Venture Trade", "CVT")
-        ERC20Capped(20000000 * (10 ** decimals()))
+        ERC20Capped(20e6 * (10 ** decimals()))
     {
-        _mint(_msgSender(), 20000000 * (10 ** decimals()));
+        INITIAL_SUPPLY = 20e6 * (10 ** decimals());
+        TOKEN_CAP = 20e6 * (10 ** decimals());
+        
+        // Mint initial supply
+        super._mint(_msgSender(), INITIAL_SUPPLY);
+        emit InitialMint(_msgSender(), INITIAL_SUPPLY);
     }
 
-    modifier validAddressAndAmount(address _address, uint256 amount){
-        require(amount > 0, "Invalid amount: should not be zero");
-        require(_address != address(0), "Invalid address: zero address");
+    modifier validAddressAndAmount(address recipient, uint256 value) {
+        require(value != 0, "Invalid amount");
+        require(recipient != address(0), "Invalid address");
         _;
     }
 
-
     // Override burn function
     function burn(uint256 amount) public override onlyOwner nonReentrant {
-        require(amount > 0, "Amount must be greater than 0");
+        require(amount != 0, "Amount must be greater than 0");
         _burn(_msgSender(), amount);
     }
 
     // Override burnFrom function 
     function burnFrom(address account, uint256 amount) public override onlyOwner nonReentrant {
-        require(amount > 0, "Amount must be greater than 0");
-        require(account != address(0), "Invalid account address");
+        require(amount != 0, "Amount must be greater than 0");
+        require(account != address(0), "Invalid account");
         _spendAllowance(account, _msgSender(), amount);
         _burn(account, amount);
     }
@@ -416,12 +434,34 @@ contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard 
     }
 
     // Override approve function 
-    function approve(address spender, uint256 amount) public override validAddressAndAmount(spender, amount) nonReentrant returns (bool) {
+    function approve(address spender, uint256 amount)
+        public
+        override
+        validAddressAndAmount(spender, amount)
+        nonReentrant
+        returns (bool)
+    {
+        address owner = _msgSender();
+        uint256 currentAllowance = allowance(owner, spender);
+
+        // Only allow non-zero approve if current allowance is zero OR user is resetting to zero
+        require(
+            (amount == 0) || (currentAllowance == 0),
+            "ERC20: must approve from zero or to zero"
+        );
+
         return super.approve(spender, amount);
     }
 
+
     // Override increaseAllowance function
-    function increaseAllowance(address spender, uint256 addedValue) public override validAddressAndAmount(spender, addedValue) nonReentrant returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) 
+        public 
+        override 
+        validAddressAndAmount(spender, addedValue) 
+        nonReentrant 
+        returns (bool) 
+    {
         return super.increaseAllowance(spender, addedValue);
     }
 
@@ -432,7 +472,7 @@ contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard 
 
     // Override _mint to enforce the cap
     function _mint(address account, uint256 amount) internal override(ERC20) {
-        require(totalSupply() + amount <= cap(), "ERC20Capped: cap exceeded");
+        require(totalSupply() + amount < TOKEN_CAP, "ERC20Capped: cap exceeded");
         super._mint(account, amount);
     }
 }

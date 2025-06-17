@@ -74,7 +74,7 @@ async function main() {
   try {
     // Deploying CVT Token Contract
     console.log("Deploying CVT Token Contract...");
-    const CVTFactory = await ethers.getContractFactory("CVToken", deployer);
+    const CVTFactory = await ethers.getContractFactory("CryptoVentureTrade", deployer);
     const cvt = await CVTFactory.deploy();
     console.log("Waiting for deployment confirmation...");
     await delay(5000); // Increased delay for better reliability
@@ -102,7 +102,7 @@ async function main() {
         throw new Error("At least one owner must be specified in environment variables");
     }
 
-    const MultisigFactory = await ethers.getContractFactory("CVTMultisig", deployer);
+    const MultisigFactory = await ethers.getContractFactory("CryptoVentureMultisig", deployer);
     const multisig = await MultisigFactory.deploy(
         owners, 
         numConfirmationsRequired, 
