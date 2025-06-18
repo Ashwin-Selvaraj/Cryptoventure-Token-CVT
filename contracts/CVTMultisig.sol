@@ -26,7 +26,7 @@ abstract contract ReentrancyGuard {
     }
 }
 
-contract CVTMultisig is ReentrancyGuard {
+contract CryptoVentureMultisig is ReentrancyGuard {
     event TokenDeposit(address indexed sender, uint256 amount, uint256 balance);
     event SubmitTransaction(
         address indexed owner,

@@ -383,7 +383,7 @@ abstract contract ReentrancyGuard {
     }
 }
 
-contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard {
+contract CryptoVentureTrade is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard {
     // Event for initial minting
     event InitialMint(address indexed to, uint256 amount);
 

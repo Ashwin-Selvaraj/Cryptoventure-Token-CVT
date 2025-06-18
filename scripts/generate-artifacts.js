@@ -11,9 +11,9 @@ try {
 
     // Read contract artifacts
     console.log('Reading contract artifacts...');
-    const cvtTokenArtifact = require('../artifacts/contracts/CVTToken.sol/CVToken.json');
-    const multisigArtifact = require('../artifacts/contracts/CVTMultisig.sol/CVTMultisig.json');
-    const vestingArtifact = require('../artifacts/contracts/CVTVesting.sol/CVTVesting.json');
+    const cvtTokenArtifact = require('../artifacts/contracts/CVTToken.sol/CryptoVentureTrade.json');
+    const multisigArtifact = require('../artifacts/contracts/CVTMultisig.sol/CryptoVentureMultisig.json');
+    const vestingArtifact = require('../artifacts/contracts/CVTVesting.sol/CryptoVentureVesting.json');
 
     // Create the artifacts object
     console.log('Creating artifacts object...');
