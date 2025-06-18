@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVT Contract Deployment</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="application/javascript"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .warning {
+            background-color: #fcf8e3;
+            color: #8a6d3b;
+        }
+        .info {
+            background-color: #d9edf7;
+            color: #31708f;
+        }
+        #log {
+            background-color: #f5f5f5;
+            border: 1px solid #e3e3e3;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .owner-inputs {
+            margin-top: 10px;
+        }
+        .owner-input {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .owner-input input {
+            flex-grow: 1;
+        }
+        .owner-input button {
+            margin-left: 5px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CVT Contract Deployment</h1>
+    
+    <div class="container">
+        <h2>Connection Status</h2>
+        <div id="connectionStatus" class="status warning">Not connected to MetaMask</div>
+        <button id="connectWallet">Connect Wallet</button>
+        <div id="accountInfo"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Contract Configuration</h2>
+        
+        <div class="form-group">
+            <label for="numConfirmations">Number of Confirmations Required:</label>
+            <input type="text" id="numConfirmations" value="2">
+        </div>
+        
+        <div class="form-group">
+            <label>Multisig Owners:</label>
+            <div id="ownersContainer" class="owner-inputs">
+                <div class="owner-input">
+                    <input type="text" class="owner-address" placeholder="Owner Address (0x...)">
+                </div>
+                <div class="owner-input">
+                    <input type="text" class="owner-address" placeholder="Owner Address (0x...)">
+                </div>
+            </div>
+            <button id="addOwner">Add Another Owner</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Deployment</h2>
+        <button id="deployButton" disabled>Deploy Contracts</button>
+        <div id="deploymentStatus" class="status info">Please connect your wallet first</div>
+    </div>
+    
+    <div class="container">
+        <h2>Deployment Log</h2>
+        <div id="log"></div>
+    </div>
+    
+    <!-- Load contract artifacts -->
+    <script src="frontend-artifacts/contract-artifacts.js"></script>
+    
+    <!-- Load deployment script -->
+    <script src="deploy-frontend.js"></script>
+</body>
+</html> 
