@@ -544,7 +544,7 @@ interface AutomationCompatibleInterface {
 abstract contract AutomationCompatible is AutomationBase, AutomationCompatibleInterface {}
 
 
-contract CryptoVentureVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface {
+contract CVTVesting is ReentrancyGuard, Ownable, AutomationCompatibleInterface {
 
     // Events
     event VestingScheduleCreated(
