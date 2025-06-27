@@ -392,7 +392,7 @@ contract CVToken is ERC20, ERC20Burnable, Ownable, ERC20Capped, ReentrancyGuard 
     uint256 private immutable TOKEN_CAP;
 
     constructor() payable
-        ERC20("Crypto Venture Token", "CVT")
+        ERC20("CV Token", "CVT")
         ERC20Capped(20e6 * (10 ** decimals()))
     {
         INITIAL_SUPPLY = 20e6 * (10 ** decimals());
