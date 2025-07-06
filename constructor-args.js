@@ -6,7 +6,7 @@ const owners = [];
 let ownerIndex = 1;
 while (process.env[`MULTISIG_OWNER_${ownerIndex}`]) {
     owners.push(process.env[`MULTISIG_OWNER_${ownerIndex}`]);
-    ownerIndex++;
+    ownerIndex++;s
 }
 
 module.exports = [
