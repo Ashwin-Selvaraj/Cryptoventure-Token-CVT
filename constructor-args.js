@@ -14,4 +14,3 @@ module.exports = [
     parseInt(process.env.NUM_CONFIRMATIONS_REQUIRED), // _numConfirmationsRequired
     bscTestnetConfig.CVTContractAddress // _token (BEP20 token address)
 ];
-
